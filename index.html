@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>财务流程 Prompt 工坊 · Finance Prompt Studio</title>
+<title>500 · Finance Prompt Studio</title>
 <meta name="description" content="面向财务流程的交互式 Prompt 提示词生成器：选择场景、角色与输出格式，一键生成并复制专业提示词。" />
 <style>
   :root{
@@ -36,7 +36,7 @@
   .logo{
     width:46px;height:46px;border-radius:12px;flex:0 0 auto;
     background:linear-gradient(145deg,var(--gold),#b98b3a);
-    display:grid;place-items:center;color:#0b1622;font-weight:800;font-size:20px;
+    display:grid;place-items:center;color:#0b1622;font-weight:800;font-size:16px;letter-spacing:.5px;
     box-shadow:0 6px 18px rgba(217,176,97,.35);
   }
   .brand h1{font-size:22px;margin:0;letter-spacing:.3px}
@@ -150,9 +150,9 @@
 <header class="site">
   <div class="wrap">
     <div class="brand">
-      <div class="logo">₮</div>
+      <div class="logo">500</div>
       <div>
-        <h1>财务流程 Prompt 工坊</h1>
+        <h1>500</h1>
         <div class="sub">Finance Prompt Studio · 面向财务流程的交互式提示词生成器</div>
       </div>
     </div>
@@ -272,7 +272,7 @@
       </div>
       <a class="btn primary" id="contributeBtn" target="_blank" rel="noopener">➕ 贡献提示词（GitHub Issue）</a>
     </div>
-    <div>© <span id="year"></span> Finance Prompt Studio · 由 GitHub Pages 托管 · 内容仅供参考，不构成财税建议。</div>
+    <div>© <span id="year"></span> 500 · Finance Prompt Studio · 由 GitHub Pages 托管 · 内容仅供参考，不构成财税建议。</div>
   </div>
 </footer>
 
@@ -309,7 +309,11 @@ const LIBRARY = [
   {cat:"成本核算", title:"制造成本差异分析", desc:"分析标准成本与实际成本差异。",
    text:"你是成本会计。基于我提供的标准成本与实际成本数据，计算并分析材料价格差异、材料用量差异、人工效率差异、制造费用差异，说明各差异的可能成因与责任归属，给出改善建议。输出含公式的计算过程与差异汇总表。"},
   {cat:"资金与现金流", title:"13周现金流预测", desc:"搭建滚动现金流预测框架。",
-   text:"你是财务分析师(FP&A)。请帮我搭建一个 13 周滚动现金流预测模型的框架：列出需要的输入项（期初现金、经营性收付、投资、融资等），给出每周现金净流量与期末余额的计算逻辑，并提示预警阈值设置方法。输出为可落地的表格结构说明与关键假设清单。"}
+   text:"你是财务分析师(FP&A)。请帮我搭建一个 13 周滚动现金流预测模型的框架：列出需要的输入项（期初现金、经营性收付、投资、融资等），给出每周现金净流量与期末余额的计算逻辑，并提示预警阈值设置方法。输出为可落地的表格结构说明与关键假设清单。"},
+  {cat:"发票管理", title:"发票合规性批量核验", desc:"检查发票要素、抬头与业务真实性。",
+   text:"你是税务顾问。请根据我提供的发票明细，逐张核验以下要素是否合规：开票抬头与纳税人识别号是否正确、发票类型与业务是否匹配、金额与税率是否一致、是否在有效期内、是否存在连号/异常开票方等风险。输出核验结果表格，列：发票号 | 检查项 | 是否通过 | 风险说明，并汇总高风险发票清单。"},
+  {cat:"往来核销", title:"往来款项对账与核销", desc:"匹配应收应付与实际收付，清理挂账。",
+   text:"你是总账会计。我会提供某往来单位的应收/应付明细与实际收付记录。请按单据逐笔匹配、完成核销，识别长期挂账、金额不符、无原始单据支撑的异常项，并给出建议处理方式（催收、冲销、转坏账、待查等）。输出核销明细表 + 异常挂账清单，并说明期末应保留的往来余额。"}
 ];
 
 /* ---------- State ---------- */
