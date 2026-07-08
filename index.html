@@ -295,9 +295,12 @@
       <div class="asst-head">
         <div>
           <h3 style="margin:0">🤖 财务助手 · 星辉零售（演示）</h3>
-          <p class="hint" style="margin:4px 0 0">基于内置的「星辉零售 2026年6月」财务数据即时问答，可真实计算营收、毛利、费用超标、应收账龄、现金流等。纯本地运算，无需联网、不消耗任何 API。</p>
+          <p class="hint" style="margin:4px 0 0">默认基于内置「星辉零售 2026年6月」数据本地问答（不联网、不耗 API）。输入<b>联网咒语</b>可解锁真实大模型，用来<b>检验你在上方生成的提示词</b>质量。</p>
         </div>
-        <button class="btn" id="asstClear">清空</button>
+        <div style="display:flex;gap:8px;align-items:center">
+          <span id="netStatus" class="tag" style="white-space:nowrap">🔒 本地模式</span>
+          <button class="btn" id="asstClear">清空</button>
+        </div>
       </div>
 
       <div class="asst-suggest" id="asstSuggest"></div>
@@ -305,10 +308,10 @@
       <div class="chatbox" id="chatbox"></div>
 
       <div class="asst-input">
-        <input type="text" id="asstQ" placeholder="问点什么，例如：6月哪些费用超预算了？" autocomplete="off" />
+        <input type="text" id="asstQ" placeholder="问点什么，例如：6月哪些费用超预算了？（输入联网咒语可解锁真实大模型）" autocomplete="off" />
         <button class="btn primary" id="asstSend">发送</button>
       </div>
-      <div class="count" style="margin-top:8px">💡 数据为虚构演示数据，仅用于展示问答能力，不构成真实财务信息。</div>
+      <div class="count" style="margin-top:8px">💡 本地数据为虚构演示；联网模式下会调用真实大模型评审上方生成的提示词。</div>
     </div>
   </section>
 
@@ -514,6 +517,107 @@ function answer(qRaw){
   return `我是基于「${DB.company} ${DB.period}」演示数据的财务助手，暂时只能回答内置数据范围内的问题。你可以试着问：\n• 6月营收多少？哪个渠道最高？\n• 毛利率 / 营业利润是多少？\n• 哪些费用超预算了？\n• 应收账龄怎么样？坏账风险？\n• 现金流 / 期末现金余额？\n• 报销单有没有异常？\n• 增值税大概要交多少？`;
 }
 
+/* ================================================================
+   联网大模型模块（口令解锁 + AES 解密 key + 注入评审 context）
+   ----------------------------------------------------------------
+   安全说明：这是纯静态客户端方案。真 key 从不以明文出现在源码里，
+   只以「口令加密后的密文」形式存在（NET.ENCRYPTED_KEY）。用户输入
+   正确口令后，浏览器在本地解密还原出 key 再调用。知道口令的人可以
+   在浏览器里看到还原后的 key —— 仅适合给自己/信任的人使用。
+   ================================================================ */
+const NET = {
+  /* —— 你需要维护的 3 项 —— */
+  // 1) 接口地址（默认 OpenAI；换厂商就改这里）
+  //    DeepSeek: https://api.deepseek.com/chat/completions
+  //    Moonshot: https://api.moonshot.cn/v1/chat/completions
+  ENDPOINT: "https://api.openai.com/v1/chat/completions",
+  // 2) 模型名（跟着上面的厂商改）
+  MODEL: "gpt-4o-mini",
+  // 3) 用口令加密后的 key 密文（base64）。
+  //    ⚠️ 换了新 key 后，用仓库里的 encrypt-key.html 重新生成再替换这里。
+  //    下面这串是用旧 key + 口令“500best”生成的示例，旧 key 可能已失效。
+  ENCRYPTED_KEY: "TzupOS3NLGHtzAPBAwbnu4Ka2ZuemNsvlSHzOJqup7l+70uebzfTg0Mci47JQg0NRmQYWwcoqaWUKiaKoXciHak7PZuAL8Jo5tJmwPj06ofCsLZkYgEhgNccx3lvn74=",
+
+  /* —— 解锁口令的 SHA-256（口令本身不写进源码；改口令就换这串哈希） —— */
+  //  当前对应口令：500best
+  SPELL_HASH: "cc8e7df5d58a13fdc2525b6e5d91bc06bf6901b9abd7886a41d9ec522e5e2efc",
+
+  PBKDF2_ITER: 250000,
+  runtimeKey: null,   // 解锁后临时保存在内存里的真 key
+};
+
+/* 评审用的系统提示词（请求前注入的 context）：让模型专门检验“上方生成的提示词”质量 */
+const REVIEW_SYSTEM = `你是一名资深的「提示词工程 + 财务领域」双背景评审专家。用户会把在本工具里生成的一段【财务提示词】发给你。你的任务不是去执行这段提示词，而是评审它的质量，帮助用户改得更好。请严格按以下结构用中文输出：
+1. 【总评】1-2 句话概括这段提示词是否清晰、可用（并给出 1-10 分）。
+2. 【优点】列出 2-4 条它做得好的地方。
+3. 【问题与风险】列出它在“角色设定 / 任务描述 / 约束条件 / 输出格式 / 财务合规口径”等方面的不足或歧义，越具体越好。
+4. 【改写建议】给出一段可直接复制使用的、改进后的完整提示词。
+5. 【补充追问】如果信息不足，列出你需要用户补充的关键信息。
+保持专业、简洁、可执行；不要编造用户没有提供的业务数据。`;
+
+/* —— WebCrypto: PBKDF2 + AES-GCM 解密 —— */
+const _enc = new TextEncoder(), _dec = new TextDecoder();
+function _b64ToBytes(b64){ const bin=atob(b64); const u=new Uint8Array(bin.length); for(let i=0;i<bin.length;i++)u[i]=bin.charCodeAt(i); return u; }
+async function _sha256Hex(str){
+  const h=await crypto.subtle.digest("SHA-256", _enc.encode(str));
+  return [...new Uint8Array(h)].map(b=>b.toString(16).padStart(2,"0")).join("");
+}
+async function _deriveKey(pass, salt){
+  const base=await crypto.subtle.importKey("raw", _enc.encode(pass), "PBKDF2", false, ["deriveKey"]);
+  return crypto.subtle.deriveKey(
+    {name:"PBKDF2", salt, iterations:NET.PBKDF2_ITER, hash:"SHA-256"},
+    base, {name:"AES-GCM", length:256}, false, ["decrypt"]);
+}
+async function decryptApiKey(pass){
+  const pack=_b64ToBytes(NET.ENCRYPTED_KEY);
+  const salt=pack.slice(0,16), iv=pack.slice(16,28), ct=pack.slice(28);
+  const key=await _deriveKey(pass, salt);
+  const pt=await crypto.subtle.decrypt({name:"AES-GCM", iv}, key, ct); // 口令错会抛错
+  return _dec.decode(pt);
+}
+
+/* —— 尝试把输入当作解锁口令 —— */
+async function tryUnlock(text){
+  const hex=await _sha256Hex(text);
+  if(hex!==NET.SPELL_HASH) return false;         // 不是口令
+  try{
+    NET.runtimeKey=await decryptApiKey(text);     // 用口令解出真 key
+    $("#netStatus").textContent="🌐 联网模式已解锁";
+    $("#netStatus").style.borderColor="var(--ok)";
+    $("#netStatus").style.color="var(--ok)";
+    return true;
+  }catch(e){
+    addMsg("bot", `<span class="bad">口令正确，但解密 key 失败</span>：可能是 <code>ENCRYPTED_KEY</code> 与该口令不匹配，或密文已损坏。请用 encrypt-key.html 重新生成密文。`);
+    return true; // 已识别为口令，不再走本地问答
+  }
+}
+
+/* —— 调用真实大模型（注入评审 context） —— */
+async function askOnline(userText){
+  const body={
+    model: NET.MODEL,
+    messages:[
+      {role:"system", content: REVIEW_SYSTEM},
+      {role:"user",   content: userText}
+    ],
+    temperature:0.3
+  };
+  const res=await fetch(NET.ENDPOINT,{
+    method:"POST",
+    headers:{"Content-Type":"application/json","Authorization":`Bearer ${NET.runtimeKey}`},
+    body:JSON.stringify(body)
+  });
+  if(!res.ok){
+    const errTxt=await res.text().catch(()=> "");
+    throw new Error(`HTTP ${res.status} ${res.statusText} ${errTxt.slice(0,300)}`);
+  }
+  const data=await res.json();
+  return data?.choices?.[0]?.message?.content || "（模型没有返回内容）";
+}
+
+/* 把纯文本安全转成可显示的 HTML（保留换行，转义尖括号） */
+function escapeHtml(s){ return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+
 /* ---------- State ---------- */
 const state = { scenario:null, role:null, constraints:new Set() };
 
@@ -649,12 +753,40 @@ function greet(){
   $("#chatbox").innerHTML="";
   addMsg("bot", `你好！我是<b>「${DB.company}」</b>的财务助手（演示）。我手上有该公司 <b>${DB.period}</b> 的营收、费用预算、应收账龄、现金流、报销明细等数据，可以帮你即时计算和分析。点下面的问题试试，或直接输入。`);
 }
-function ask(text){
+async function ask(text){
   const q=(text||"").trim(); if(!q) return;
+
+  // 1) 先尝试把输入当作“联网咒语”。是口令就解锁，且不把口令回显到聊天框。
+  if(!NET.runtimeKey){
+    const unlocked=await tryUnlock(q);
+    if(unlocked){
+      $("#asstQ").value="";
+      if(NET.runtimeKey){
+        addMsg("bot", `✅ <b>联网模式已解锁。</b>现在把你在上方生成的提示词（或任意提示词）粘进来发送，我会用真实大模型帮你<b>评审并给出改写建议</b>。`);
+      }
+      return;
+    }
+  }
+
   addMsg("user", q.replace(/[<>]/g,""));
   $("#asstQ").value="";
+
+  // 2) 已解锁 → 走真实大模型（注入评审 context）
+  if(NET.runtimeKey){
+    const typing=addMsg("bot", "正在请求大模型评审…"); typing.classList.add("typing");
+    try{
+      const reply=await askOnline(q);
+      typing.remove();
+      addMsg("bot", escapeHtml(reply));
+    }catch(e){
+      typing.remove();
+      addMsg("bot", `<span class="bad">联网调用失败</span>：${escapeHtml(String(e.message||e))}\n\n可能原因：key 无效/欠费、模型名或接口地址不对、或该厂商不允许浏览器直连（CORS）。请检查 <code>NET</code> 配置。`);
+    }
+    return;
+  }
+
+  // 3) 未解锁 → 本地演示问答
   const typing=addMsg("bot", "正在核算数据…"); typing.classList.add("typing");
-  // small delay to feel responsive/computed
   setTimeout(()=>{ typing.remove(); addMsg("bot", answer(q)); }, 420);
 }
 function renderSuggest(){

@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>加密 API Key · 生成器</title>
+<style>
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Microsoft YaHei",sans-serif;
+    background:#0b1622;color:#e8eef5;line-height:1.7;max-width:760px;margin:0 auto;padding:32px 20px}
+  h1{font-size:22px} h2{font-size:16px;margin-top:28px;color:#f0cd86}
+  label{display:block;margin:14px 0 6px;color:#9db2c8;font-size:14px}
+  input,textarea{width:100%;box-sizing:border-box;background:#0f1e2e;color:#e8eef5;
+    border:1px solid #22415f;border-radius:8px;padding:10px 12px;font-size:14px;font-family:monospace}
+  textarea{min-height:90px;word-break:break-all}
+  button{margin-top:16px;cursor:pointer;background:linear-gradient(145deg,#d9b061,#c1913f);
+    color:#0b1622;border:0;border-radius:8px;padding:11px 20px;font-size:15px;font-weight:700}
+  .box{background:#132638;border:1px solid #22415f;border-radius:12px;padding:18px 20px;margin-top:18px}
+  .out{background:#0b1622;border:1px solid #22415f;border-radius:8px;padding:12px;
+    word-break:break-all;font-family:monospace;font-size:13px;margin-top:8px;white-space:pre-wrap}
+  .warn{color:#e07a5f} .ok{color:#4cc38a} code{color:#f0cd86}
+  ol{color:#9db2c8;font-size:14px}
+</style>
+</head>
+<body>
+  <h1>🔐 加密 API Key 生成器</h1>
+  <p class="warn">本页只在你自己的浏览器里运行，输入的 key/口令不会发送到任何服务器。用完这一步即可，<b>不必</b>把本页的输入内容提交到 GitHub。</p>
+
+  <div class="box">
+    <label>1 · 你的真实 API Key（如 sk-...）</label>
+    <input id="key" type="text" placeholder="粘贴你新的、有效的 API Key" autocomplete="off" />
+
+    <label>2 · 解锁口令（联网咒语，例如 500best）</label>
+    <input id="pass" type="text" placeholder="设一个尽量长且随机的口令更安全" autocomplete="off" />
+
+    <button id="go">生成密文 + 口令哈希</button>
+  </div>
+
+  <div id="result" style="display:none">
+    <h2>① 把这段替换 index.html 里的 <code>NET.ENCRYPTED_KEY</code></h2>
+    <div class="out" id="ct"></div>
+
+    <h2>② 把这段替换 index.html 里的 <code>NET.SPELL_HASH</code></h2>
+    <div class="out" id="hash"></div>
+
+    <h2>③ 别忘了同时改对 <code>NET.ENDPOINT</code> 和 <code>NET.MODEL</code></h2>
+    <ol>
+      <li>OpenAI：<code>https://api.openai.com/v1/chat/completions</code> · 模型 <code>gpt-4o-mini</code></li>
+      <li>DeepSeek：<code>https://api.deepseek.com/chat/completions</code> · 模型 <code>deepseek-chat</code></li>
+      <li>Moonshot：<code>https://api.moonshot.cn/v1/chat/completions</code> · 模型 <code>moonshot-v1-8k</code></li>
+    </ol>
+    <p class="ok">改完 3 处后，打开 index.html，在助手里输入你的口令即可解锁联网模式。</p>
+  </div>
+
+<script>
+const enc=new TextEncoder();
+const b64=buf=>btoa(String.fromCharCode(...new Uint8Array(buf)));
+const ITER=250000;
+async function deriveKey(pass,salt){
+  const base=await crypto.subtle.importKey("raw",enc.encode(pass),"PBKDF2",false,["deriveKey"]);
+  return crypto.subtle.deriveKey({name:"PBKDF2",salt,iterations:ITER,hash:"SHA-256"},
+    base,{name:"AES-GCM",length:256},false,["encrypt"]);
+}
+async function sha256Hex(str){
+  const h=await crypto.subtle.digest("SHA-256",enc.encode(str));
+  return [...new Uint8Array(h)].map(b=>b.toString(16).padStart(2,"0")).join("");
+}
+document.getElementById("go").addEventListener("click",async()=>{
+  const key=document.getElementById("key").value.trim();
+  const pass=document.getElementById("pass").value;
+  if(!key||!pass){alert("请填写 key 和口令");return;}
+  const salt=crypto.getRandomValues(new Uint8Array(16));
+  const iv=crypto.getRandomValues(new Uint8Array(12));
+  const ck=await deriveKey(pass,salt);
+  const ct=new Uint8Array(await crypto.subtle.encrypt({name:"AES-GCM",iv},ck,enc.encode(key)));
+  const pack=new Uint8Array(16+12+ct.length); pack.set(salt,0); pack.set(iv,16); pack.set(ct,28);
+  document.getElementById("ct").textContent=b64(pack);
+  document.getElementById("hash").textContent=await sha256Hex(pass);
+  document.getElementById("result").style.display="block";
+});
+</script>
+</body>
+</html>
