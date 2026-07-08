@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>财务流程 Prompt 工坊 · Finance Prompt Studio</title>
+<meta name="description" content="面向财务流程的交互式 Prompt 提示词生成器：选择场景、角色与输出格式，一键生成并复制专业提示词。" />
+<style>
+  :root{
+    --bg:#0b1622; --bg-2:#0f1e2e; --panel:#132638; --panel-2:#16304a;
+    --line:#22415f; --line-soft:#1b3450;
+    --ink:#e8eef5; --ink-dim:#9db2c8; --ink-faint:#6a83a0;
+    --gold:#d9b061; --gold-2:#f0cd86; --teal:#3fb6a8;
+    --danger:#e07a5f; --ok:#4cc38a;
+    --radius:14px; --shadow:0 10px 34px rgba(0,0,0,.45);
+    --mono:"SFMono-Regular",Consolas,"Liberation Mono",Menlo,monospace;
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    font-family:var(--sans); color:var(--ink); line-height:1.6;
+    background:
+      radial-gradient(1200px 700px at 80% -10%, rgba(217,176,97,.10), transparent 60%),
+      radial-gradient(900px 600px at -5% 10%, rgba(63,182,168,.08), transparent 55%),
+      linear-gradient(180deg,var(--bg),var(--bg-2));
+    background-attachment:fixed; min-height:100vh;
+  }
+  a{color:var(--gold-2); text-decoration:none}
+  a:hover{text-decoration:underline}
+  .wrap{max-width:1120px; margin:0 auto; padding:0 20px}
+
+  /* Header */
+  header.site{padding:34px 0 10px}
+  .brand{display:flex; align-items:center; gap:14px}
+  .logo{
+    width:46px;height:46px;border-radius:12px;flex:0 0 auto;
+    background:linear-gradient(145deg,var(--gold),#b98b3a);
+    display:grid;place-items:center;color:#0b1622;font-weight:800;font-size:20px;
+    box-shadow:0 6px 18px rgba(217,176,97,.35);
+  }
+  .brand h1{font-size:22px;margin:0;letter-spacing:.3px}
+  .brand .sub{color:var(--ink-dim);font-size:13px;margin-top:2px}
+  .hero{
+    margin-top:22px;padding:26px 28px;border-radius:var(--radius);
+    background:linear-gradient(180deg,rgba(22,48,74,.75),rgba(19,38,56,.6));
+    border:1px solid var(--line); box-shadow:var(--shadow);
+  }
+  .hero h2{margin:0 0 8px;font-size:26px;line-height:1.3}
+  .hero p{margin:0;color:var(--ink-dim);max-width:70ch}
+  .hero .tags{margin-top:16px;display:flex;flex-wrap:wrap;gap:8px}
+  .tag{font-size:12px;color:var(--gold-2);border:1px solid var(--line);
+    padding:4px 10px;border-radius:999px;background:rgba(217,176,97,.06)}
+
+  /* Layout */
+  .grid{display:grid;grid-template-columns:1.05fr 1fr;gap:20px;margin:22px 0 40px}
+  @media(max-width:900px){.grid{grid-template-columns:1fr}}
+  .card{
+    background:linear-gradient(180deg,var(--panel),var(--panel-2));
+    border:1px solid var(--line);border-radius:var(--radius);
+    padding:20px 20px 22px;box-shadow:var(--shadow);
+  }
+  .card h3{margin:0 0 4px;font-size:16px;display:flex;align-items:center;gap:8px}
+  .card .hint{color:var(--ink-faint);font-size:12.5px;margin:0 0 14px}
+  .sec{margin-bottom:18px}
+  .sec > label{display:block;font-size:13px;color:var(--ink-dim);margin-bottom:8px;font-weight:600}
+
+  /* Chips */
+  .chips{display:flex;flex-wrap:wrap;gap:8px}
+  .chip{
+    cursor:pointer;user-select:none;font-size:13px;color:var(--ink-dim);
+    border:1px solid var(--line);background:rgba(255,255,255,.02);
+    padding:7px 12px;border-radius:10px;transition:all .15s ease;
+  }
+  .chip:hover{border-color:var(--gold);color:var(--ink)}
+  .chip[aria-pressed="true"]{
+    background:linear-gradient(145deg,rgba(217,176,97,.22),rgba(217,176,97,.08));
+    border-color:var(--gold);color:var(--gold-2);font-weight:600;
+  }
+
+  /* Inputs */
+  input[type=text],textarea,select{
+    width:100%;background:var(--bg);color:var(--ink);
+    border:1px solid var(--line);border-radius:10px;padding:10px 12px;
+    font-family:var(--sans);font-size:14px;resize:vertical;
+  }
+  textarea{min-height:70px}
+  input:focus,textarea:focus,select:focus{outline:none;border-color:var(--gold)}
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  @media(max-width:520px){.row2{grid-template-columns:1fr}}
+
+  .toggle-row{display:flex;flex-wrap:wrap;gap:8px}
+
+  /* Output */
+  .out-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px}
+  .out-head .actions{display:flex;gap:8px}
+  .btn{
+    cursor:pointer;border:1px solid var(--line);background:rgba(255,255,255,.03);
+    color:var(--ink);font-size:13px;padding:8px 14px;border-radius:10px;
+    transition:all .15s ease;font-family:var(--sans);
+  }
+  .btn:hover{border-color:var(--gold);color:var(--gold-2)}
+  .btn.primary{background:linear-gradient(145deg,var(--gold),#c1913f);color:#0b1622;border-color:transparent;font-weight:700}
+  .btn.primary:hover{filter:brightness(1.06);color:#0b1622}
+  .btn.ok{border-color:var(--ok);color:var(--ok)}
+  pre.output{
+    margin:0;white-space:pre-wrap;word-break:break-word;
+    background:var(--bg);border:1px solid var(--line);border-radius:12px;
+    padding:16px;font-family:var(--mono);font-size:13px;line-height:1.7;
+    color:#dfe8f1;min-height:280px;max-height:60vh;overflow:auto;
+  }
+  .count{color:var(--ink-faint);font-size:12px}
+
+  /* Library */
+  .lib{margin:8px 0 50px}
+  .lib h3{font-size:18px;margin:0 0 6px}
+  .lib .hint{color:var(--ink-faint);font-size:13px;margin:0 0 16px}
+  .lib-filters{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px}
+  .cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px}
+  .pcard{
+    background:linear-gradient(180deg,var(--panel),var(--panel-2));
+    border:1px solid var(--line);border-radius:12px;padding:16px;display:flex;flex-direction:column;gap:10px;
+  }
+  .pcard .cat{font-size:11px;color:var(--gold-2);letter-spacing:.4px;text-transform:uppercase}
+  .pcard h4{margin:0;font-size:15px}
+  .pcard p{margin:0;color:var(--ink-dim);font-size:13px;flex:1}
+  .pcard .foot{display:flex;gap:8px}
+  .pcard .foot .btn{padding:6px 10px;font-size:12px}
+
+  /* Footer */
+  footer{border-top:1px solid var(--line);padding:26px 0 50px;color:var(--ink-faint);font-size:13px}
+  footer .cta{
+    display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;
+    background:linear-gradient(180deg,rgba(22,48,74,.6),rgba(19,38,56,.4));
+    border:1px solid var(--line);border-radius:14px;padding:18px 20px;margin-bottom:20px;
+  }
+  footer .cta .btn.primary{white-space:nowrap}
+
+  /* Toast */
+  .toast{
+    position:fixed;left:50%;bottom:28px;transform:translateX(-50%) translateY(20px);
+    background:var(--panel-2);border:1px solid var(--ok);color:var(--ok);
+    padding:10px 18px;border-radius:10px;box-shadow:var(--shadow);
+    opacity:0;pointer-events:none;transition:all .25s ease;font-size:14px;z-index:50;
+  }
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+</style>
+</head>
+<body>
+<header class="site">
+  <div class="wrap">
+    <div class="brand">
+      <div class="logo">₮</div>
+      <div>
+        <h1>财务流程 Prompt 工坊</h1>
+        <div class="sub">Finance Prompt Studio · 面向财务流程的交互式提示词生成器</div>
+      </div>
+    </div>
+    <div class="hero">
+      <h2>把财务流程说清楚，让 AI 给出专业答案</h2>
+      <p>选择业务场景、AI 扮演的角色、你的约束条件与期望输出格式，工坊会为你拼装出一段结构清晰、可直接粘贴到大模型里的中文提示词。下方还有精选提示词库可一键取用。</p>
+      <div class="tags">
+        <span class="tag">报销与费用</span><span class="tag">对账</span><span class="tag">预算</span>
+        <span class="tag">应收应付</span><span class="tag">税务</span><span class="tag">财务分析</span>
+        <span class="tag">审计与内控</span><span class="tag">月末结账</span>
+      </div>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+  <section class="grid">
+    <!-- Builder -->
+    <div class="card">
+      <h3>🛠️ 提示词生成器</h3>
+      <p class="hint">按需选择，右侧会实时生成提示词。带 * 的建议填写。</p>
+
+      <div class="sec">
+        <label>1 · 业务场景 *</label>
+        <div class="chips" id="scenarioChips"></div>
+      </div>
+
+      <div class="sec">
+        <label>2 · 让 AI 扮演的角色</label>
+        <div class="chips" id="roleChips"></div>
+      </div>
+
+      <div class="sec">
+        <label>3 · 具体任务 / 背景描述 *</label>
+        <textarea id="task" placeholder="例如：帮我核对 6 月员工差旅报销单，识别超标、缺发票和重复提交的记录。"></textarea>
+      </div>
+
+      <div class="sec row2">
+        <div>
+          <label>4 · 企业 / 行业背景</label>
+          <input type="text" id="context" placeholder="如：零售连锁，A股上市，用友U8" />
+        </div>
+        <div>
+          <label>5 · 适用准则 / 口径</label>
+          <input type="text" id="standard" placeholder="如：中国企业会计准则(CAS)" />
+        </div>
+      </div>
+
+      <div class="sec">
+        <label>6 · 约束条件（可多选）</label>
+        <div class="chips toggle-row" id="constraintChips"></div>
+      </div>
+
+      <div class="sec row2">
+        <div>
+          <label>7 · 输出格式</label>
+          <select id="format">
+            <option>分步骤清单</option>
+            <option>Markdown 表格</option>
+            <option>结构化报告（含小标题）</option>
+            <option>要点提炼（Bullet Points）</option>
+            <option>可执行 SQL / 公式</option>
+            <option>纯文字说明</option>
+          </select>
+        </div>
+        <div>
+          <label>8 · 语气 / 详略</label>
+          <select id="tone">
+            <option>专业严谨、简明</option>
+            <option>专业严谨、详尽</option>
+            <option>通俗易懂、面向非财务同事</option>
+            <option>审阅质询、挑毛病式</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="sec">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+          <input type="checkbox" id="askBack" style="width:auto" checked />
+          信息不足时，先反问澄清再作答
+        </label>
+      </div>
+    </div>
+
+    <!-- Output -->
+    <div class="card">
+      <div class="out-head">
+        <h3 style="margin:0">📋 生成的提示词</h3>
+        <div class="actions">
+          <button class="btn" id="resetBtn">重置</button>
+          <button class="btn primary" id="copyBtn">复制</button>
+        </div>
+      </div>
+      <pre class="output" id="output"></pre>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px">
+        <span class="count" id="charCount">0 字</span>
+        <span class="count">💡 复制后粘贴到 ChatGPT / Claude / 文心一言 等即可</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- Library -->
+  <section class="lib">
+    <h3>📚 精选财务提示词库</h3>
+    <p class="hint">点击「用作模板」把提示词载入上方生成器继续调整，或直接「复制」。</p>
+    <div class="lib-filters" id="libFilters"></div>
+    <div class="cards" id="libCards"></div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <div class="cta">
+      <div>
+        <strong style="color:var(--ink)">有更好的财务提示词？</strong>
+        <div>欢迎提交到 GitHub Issue，一起完善这个提示词库。</div>
+      </div>
+      <a class="btn primary" id="contributeBtn" target="_blank" rel="noopener">➕ 贡献提示词（GitHub Issue）</a>
+    </div>
+    <div>© <span id="year"></span> Finance Prompt Studio · 由 GitHub Pages 托管 · 内容仅供参考，不构成财税建议。</div>
+  </div>
+</footer>
+
+<div class="toast" id="toast">已复制到剪贴板 ✓</div>
+
+<script>
+/* ---------- Config ---------- */
+const GH_USER = "Lynn-Wu500";
+const GH_REPO = "Repo-for-Agent";
+const ISSUE_URL = `https://github.com/${GH_USER}/${GH_REPO}/issues/new?title=${encodeURIComponent("[提示词投稿] ")}&labels=prompt&body=${encodeURIComponent("**场景**：\n\n**提示词内容**：\n\n**说明 / 适用情况**：\n")}`;
+
+/* ---------- Data ---------- */
+const SCENARIOS = ["报销与费用","银行对账","应收应付","预算编制","月末结账","财务报表分析","税务处理","审计与内控","成本核算","资金与现金流","往来核销","发票管理"];
+const ROLES = ["资深财务经理","注册会计师(CPA)","总账会计","税务顾问","财务分析师(FP&A)","内控/审计专员","出纳"];
+const CONSTRAINTS = ["列出所需数据字段","标注风险与合规点","给出可复核的计算过程","引用相关准则条款","区分不同平台/口径","给出异常判定阈值","附检查清单","保持数字口径一致"];
+
+const LIBRARY = [
+  {cat:"报销与费用", title:"差旅报销稽核", desc:"批量检查差旅报销单的超标、缺票与重复提交。",
+   text:"你是一名资深财务经理，负责差旅费用稽核。请根据我提供的报销明细，逐条检查以下问题并按【问题类型】分组输出：\n1) 超出差旅标准的项目（标注超出金额）；\n2) 缺少发票或发票信息不全；\n3) 疑似重复提交（同一日期/金额/事由）；\n4) 不符合报销政策的项目。\n输出为 Markdown 表格，列：单据号 | 员工 | 问题类型 | 说明 | 建议处理。若信息不足请先向我提问。"},
+  {cat:"银行对账", title:"银企对账差异分析", desc:"比对银行流水与账面记录，定位未达账项。",
+   text:"你是总账会计。我会给你「银行对账单」与「企业账面日记账」两份数据。请编制银行存款余额调节表，识别并分类未达账项（企业已收银行未收、企业已付银行未付、银行已收企业未收、银行已付企业未付），并给出调节后余额是否一致的结论。输出结构化报告，附差异清单表格。"},
+  {cat:"月末结账", title:"月末结账检查清单", desc:"生成标准月结 checklist，避免漏项。",
+   text:"你是资深财务经理。请为我生成一份完整的【月末结账检查清单】，覆盖：收入确认、成本结转、费用计提与摊销、折旧、往来核对、银行对账、存货盘点、税金计提、报表勾稽核对等环节。每项包含：任务、负责人角色、前置依赖、常见错误。输出为分步骤清单。"},
+  {cat:"财务报表分析", title:"三大报表健康诊断", desc:"从盈利、偿债、营运、成长四维度分析。",
+   text:"你是财务分析师(FP&A)。基于我提供的资产负债表、利润表、现金流量表，从盈利能力、偿债能力、营运能力、成长能力四个维度做诊断分析，计算关键财务比率并解释其含义与趋势，指出风险信号与改善建议。输出结构化报告，含指标表格与结论摘要。"},
+  {cat:"税务处理", title:"增值税进销项自查", desc:"检查进销项匹配与税率适用是否合规。",
+   text:"你是税务顾问，熟悉中国增值税规定。请根据我提供的进项与销项发票明细，检查：税率适用是否正确、进项是否可抵扣、是否存在滞留票或超期认证、销项与收入是否匹配。列出疑点清单并标注合规风险等级（高/中/低）。信息不足时先提问。"},
+  {cat:"预算编制", title:"部门预算编制向导", desc:"引导按科目编制年度费用预算。",
+   text:"你是资深财务经理，负责协助业务部门编制年度费用预算。请以提问的方式，逐步引导我按费用科目（人力、市场、差旅、办公、IT 等）填写预算，结合去年实际与增长假设给出合理性提示，最后汇总为按季度拆分的预算表（Markdown 表格）。"},
+  {cat:"应收应付", title:"应收账龄与坏账提示", desc:"按账龄分层并提示回款风险。",
+   text:"你是总账会计。根据我提供的应收账款明细，按账龄区间（0-30/31-60/61-90/90-180/180天以上）分层汇总，计算各区间占比，标注逾期客户与潜在坏账风险，并建议计提比例。输出账龄分析表 + 风险提示。"},
+  {cat:"审计与内控", title:"费用报销内控测试", desc:"设计报销流程的内控穿行测试步骤。",
+   text:"你是内控/审计专员。请为「员工费用报销」流程设计一套内控穿行测试方案，覆盖授权审批、职责分离、单据完整性、金额与预算控制、系统权限等控制点。每个控制点给出：控制目标、测试步骤、样本量建议、可能的缺陷表现。输出结构化报告。"},
+  {cat:"成本核算", title:"制造成本差异分析", desc:"分析标准成本与实际成本差异。",
+   text:"你是成本会计。基于我提供的标准成本与实际成本数据，计算并分析材料价格差异、材料用量差异、人工效率差异、制造费用差异，说明各差异的可能成因与责任归属，给出改善建议。输出含公式的计算过程与差异汇总表。"},
+  {cat:"资金与现金流", title:"13周现金流预测", desc:"搭建滚动现金流预测框架。",
+   text:"你是财务分析师(FP&A)。请帮我搭建一个 13 周滚动现金流预测模型的框架：列出需要的输入项（期初现金、经营性收付、投资、融资等），给出每周现金净流量与期末余额的计算逻辑，并提示预警阈值设置方法。输出为可落地的表格结构说明与关键假设清单。"}
+];
+
+/* ---------- State ---------- */
+const state = { scenario:null, role:null, constraints:new Set() };
+
+/* ---------- Helpers ---------- */
+const $ = s => document.querySelector(s);
+function chip(text, pressed=false){
+  const b=document.createElement("button");
+  b.className="chip"; b.type="button"; b.textContent=text;
+  b.setAttribute("aria-pressed", pressed?"true":"false");
+  return b;
+}
+function renderChips(container, items, kind){
+  const el=$(container);
+  items.forEach(t=>{
+    const c=chip(t);
+    c.addEventListener("click",()=>{
+      if(kind==="constraint"){
+        const on=c.getAttribute("aria-pressed")==="true";
+        c.setAttribute("aria-pressed", on?"false":"true");
+        if(on) state.constraints.delete(t); else state.constraints.add(t);
+      }else{
+        const on=c.getAttribute("aria-pressed")==="true";
+        [...el.children].forEach(x=>x.setAttribute("aria-pressed","false"));
+        if(!on){ c.setAttribute("aria-pressed","true"); state[kind]=t; }
+        else state[kind]=null;
+      }
+      build();
+    });
+    el.appendChild(c);
+  });
+}
+
+/* ---------- Prompt builder ---------- */
+function build(){
+  const task=$("#task").value.trim();
+  const ctx=$("#context").value.trim();
+  const std=$("#standard").value.trim();
+  const fmt=$("#format").value;
+  const tone=$("#tone").value;
+  const askBack=$("#askBack").checked;
+
+  const lines=[];
+  const role = state.role || "资深财务专家";
+  lines.push(`你是一名${role}，请用${tone}的方式协助我完成以下财务工作。`);
+  lines.push("");
+  if(state.scenario) lines.push(`【业务场景】${state.scenario}`);
+  lines.push(`【任务】${task || "（请在此描述你的具体任务）"}`);
+  if(ctx) lines.push(`【企业/行业背景】${ctx}`);
+  if(std) lines.push(`【适用准则/口径】${std}`);
+
+  if(state.constraints.size){
+    lines.push("");
+    lines.push("【要求】");
+    [...state.constraints].forEach((c,i)=>lines.push(`${i+1}. ${c}`));
+  }
+
+  lines.push("");
+  lines.push(`【输出格式】请以「${fmt}」的形式给出结果。`);
+  if(askBack) lines.push("【澄清】如果我提供的信息不足以准确作答，请先列出你需要我补充的关键信息，再开始。");
+
+  const text=lines.join("\n");
+  $("#output").textContent=text;
+  $("#charCount").textContent=`${text.length} 字`;
+}
+
+/* ---------- Library ---------- */
+function renderLibrary(){
+  const cats=["全部",...new Set(LIBRARY.map(x=>x.cat))];
+  const fEl=$("#libFilters");
+  cats.forEach((c,i)=>{
+    const b=chip(c,i===0);
+    b.addEventListener("click",()=>{
+      [...fEl.children].forEach(x=>x.setAttribute("aria-pressed","false"));
+      b.setAttribute("aria-pressed","true");
+      drawCards(c);
+    });
+    fEl.appendChild(b);
+  });
+  drawCards("全部");
+}
+function drawCards(cat){
+  const wrap=$("#libCards"); wrap.innerHTML="";
+  LIBRARY.filter(x=>cat==="全部"||x.cat===cat).forEach(p=>{
+    const el=document.createElement("div"); el.className="pcard";
+    el.innerHTML=`<div class="cat">${p.cat}</div><h4>${p.title}</h4><p>${p.desc}</p>`;
+    const foot=document.createElement("div"); foot.className="foot";
+    const useBtn=chipBtn("用作模板"); const copyBtn=chipBtn("复制");
+    useBtn.className="btn"; copyBtn.className="btn";
+    useBtn.addEventListener("click",()=>{
+      $("#task").value=p.text;
+      // try to select scenario chip that matches category
+      const sc=[...$("#scenarioChips").children].find(x=>x.textContent===p.cat || p.cat.includes(x.textContent));
+      if(sc){ [...$("#scenarioChips").children].forEach(x=>x.setAttribute("aria-pressed","false")); sc.setAttribute("aria-pressed","true"); state.scenario=sc.textContent; }
+      build();
+      window.scrollTo({top:0,behavior:"smooth"});
+      toast("已载入生成器 ✓");
+    });
+    copyBtn.addEventListener("click",()=>copy(p.text));
+    foot.appendChild(useBtn); foot.appendChild(copyBtn);
+    el.appendChild(foot); wrap.appendChild(el);
+  });
+}
+function chipBtn(t){const b=document.createElement("button");b.type="button";b.textContent=t;return b;}
+
+/* ---------- Copy + toast ---------- */
+let toastTimer;
+function toast(msg){
+  const t=$("#toast"); t.textContent=msg; t.classList.add("show");
+  clearTimeout(toastTimer); toastTimer=setTimeout(()=>t.classList.remove("show"),1800);
+}
+async function copy(text){
+  try{
+    await navigator.clipboard.writeText(text);
+  }catch(e){
+    const ta=document.createElement("textarea"); ta.value=text; document.body.appendChild(ta);
+    ta.select(); document.execCommand("copy"); document.body.removeChild(ta);
+  }
+  toast("已复制到剪贴板 ✓");
+}
+
+/* ---------- Init ---------- */
+renderChips("#scenarioChips", SCENARIOS, "scenario");
+renderChips("#roleChips", ROLES, "role");
+renderChips("#constraintChips", CONSTRAINTS, "constraint");
+renderLibrary();
+["#task","#context","#standard","#format","#tone","#askBack"].forEach(s=>{
+  $(s).addEventListener("input", build);
+  $(s).addEventListener("change", build);
+});
+$("#copyBtn").addEventListener("click",()=>copy($("#output").textContent));
+$("#resetBtn").addEventListener("click",()=>{
+  state.scenario=null; state.role=null; state.constraints.clear();
+  document.querySelectorAll(".chip").forEach(c=>c.setAttribute("aria-pressed","false"));
+  ["#task","#context","#standard"].forEach(s=>$(s).value="");
+  $("#format").selectedIndex=0; $("#tone").selectedIndex=0; $("#askBack").checked=true;
+  build();
+});
+$("#contributeBtn").href=ISSUE_URL;
+$("#year").textContent=new Date().getFullYear();
+build();
+</script>
+</body>
+</html>
